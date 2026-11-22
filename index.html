@@ -211,13 +211,19 @@
             'success'
           );
 
-        } else {
-          showMessage(
-            '掃描成功，但找不到原報到視窗。\n請從原報到系統開啟掃描頁面，再重新掃描。',
-            'error'
-          );
-          scanCompleted = false;
-        }
+} else {
+  const openerStatus = !window.opener
+    ? 'window.opener 為 null'
+    : 'window.opener.closed = ' + window.opener.closed;
+
+  showMessage(
+    '掃描成功，但無法傳回報到系統。\n診斷結果：' + openerStatus +
+    '\n請將這段診斷結果回報給系統管理者。',
+    'error'
+  );
+
+  scanCompleted = false;
+}
 
       } catch (error) {
         scanCompleted = false;
