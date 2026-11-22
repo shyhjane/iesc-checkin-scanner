@@ -197,33 +197,28 @@
 
         showMessage('QR Code 掃描成功，正在傳回報到系統……', 'success');
 
-        if (window.opener && !window.opener.closed) {
-          window.opener.postMessage(
-            {
-              type: 'IESC_QR_SCANNED',
-              qrContent: decodedText
-            },
-            '*'
-          );
 
-          showMessage(
-            '掃描成功！資料已傳送給原報到系統。\n請回到原報到視窗確認報到結果。',
-            'success'
-          );
-
-} else {
-  const openerStatus = !window.opener
-    ? 'window.opener 為 null'
-    : 'window.opener.closed = ' + window.opener.closed;
-
-  showMessage(
-    '掃描成功，但無法傳回報到系統。\n診斷結果：' + openerStatus +
-    '\n請將這段診斷結果回報給系統管理者。',
-    'error'
+if (window.parent && window.parent !== window) {
+  window.parent.postMessage(
+    {
+      type: 'IESC_QR_SCANNED',
+      qrContent: decodedText
+    },
+    '*'
   );
 
+  showMessage(
+    '掃描成功！資料已傳送給原報到系統。\n請回到報到頁面確認報到結果。',
+    'success'
+  );
+} else {
+  showMessage(
+    '無法連結原報到系統，請重新整理頁面後再試。',
+    'error'
+  );
   scanCompleted = false;
 }
+
 
       } catch (error) {
         scanCompleted = false;
