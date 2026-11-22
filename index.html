@@ -186,6 +186,9 @@
 
 
 async function onScanSuccess(decodedText) {
+
+  console.log('實際掃描到的 QR Code：', decodedText);
+  
   if (scanCompleted) return;
 
   scanCompleted = true;
