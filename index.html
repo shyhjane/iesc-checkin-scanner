@@ -1,0 +1,248 @@
+
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>電競產業國際趨勢研討會｜QR Code 掃描</title>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px 16px;
+      font-family: Arial, "Microsoft JhengHei", sans-serif;
+      background: #f1f5f9;
+      color: #102240;
+    }
+
+    .container {
+      max-width: 520px;
+      margin: 30px auto;
+      padding: 28px 22px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+
+    h2 {
+      margin: 0 0 8px;
+      font-size: 23px;
+    }
+
+    .subtitle {
+      color: #64748b;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    #reader {
+      width: 100%;
+      margin: 0 auto 18px;
+    }
+
+    .message {
+      margin: 16px 0;
+      padding: 13px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      color: #475569;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .success {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 10px;
+      border: 0;
+      border-radius: 9px;
+      background: #0a2240;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+
+    .note {
+      margin-top: 18px;
+      color: #64748b;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h2>電競產業國際趨勢研討會</h2>
+    <div class="subtitle">工作人員 QR Code 掃描報到</div>
+
+    <div id="reader"></div>
+
+    <div id="message" class="message">
+      請按下方按鈕，開啟相機掃描參加者名牌。
+    </div>
+
+    <button id="startButton" onclick="startScanner()">
+      開啟相機
+    </button>
+
+    <button id="closeButton" onclick="closeScanner()">
+      關閉掃描頁面
+    </button>
+
+    <div class="note">
+      掃描成功後，系統會將 QR Code 資料傳回原報到系統。
+      <br>
+      請勿將此頁面提供給一般參加者作為報到入口。
+    </div>
+  </div>
+
+  <script>
+    let scanner = null;
+    let scannerRunning = false;
+    let scanCompleted = false;
+
+    function showMessage(message, type) {
+      const el = document.getElementById('message');
+      el.textContent = message;
+      el.className = 'message ' + (type || '');
+    }
+
+    async function startScanner() {
+      if (scannerRunning) return;
+
+      if (typeof Html5Qrcode === 'undefined') {
+        showMessage('掃描程式載入失敗，請重新整理頁面。', 'error');
+        return;
+      }
+
+      const button = document.getElementById('startButton');
+      button.disabled = true;
+      button.textContent = '正在啟動相機……';
+
+      try {
+        if (!scanner) {
+          scanner = new Html5Qrcode('reader');
+        }
+
+        const cameras = await Html5Qrcode.getCameras();
+
+        if (!cameras || cameras.length === 0) {
+          throw new Error('找不到可使用的相機。');
+        }
+
+        const camera = cameras.find(function(c) {
+          return /back|rear|environment/i.test(c.label);
+        }) || cameras[cameras.length - 1];
+
+        await scanner.start(
+          camera.id,
+          {
+            fps: 10,
+            qrbox: { width: 240, height: 240 }
+          },
+          onScanSuccess,
+          function() {}
+        );
+
+        scannerRunning = true;
+        button.textContent = '相機掃描中';
+        showMessage('相機已開啟，請將參加者名牌 QR Code 對準掃描框。', 'success');
+
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = '重新開啟相機';
+
+        showMessage(
+          '無法開啟相機：' + (error.message || String(error)) +
+          '\n\n請確認瀏覽器相機權限，並確認沒有其他程式占用相機。',
+          'error'
+        );
+      }
+    }
+
+    async function onScanSuccess(decodedText) {
+      if (scanCompleted) return;
+
+      scanCompleted = true;
+
+      try {
+        if (scanner && scannerRunning) {
+          await scanner.stop();
+          scannerRunning = false;
+        }
+
+        showMessage('QR Code 掃描成功，正在傳回報到系統……', 'success');
+
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage(
+            {
+              type: 'IESC_QR_SCANNED',
+              qrContent: decodedText
+            },
+            '*'
+          );
+
+          showMessage(
+            '掃描成功！資料已傳送給原報到系統。\n請回到原報到視窗確認報到結果。',
+            'success'
+          );
+
+        } else {
+          showMessage(
+            '掃描成功，但找不到原報到視窗。\n請從原報到系統開啟掃描頁面，再重新掃描。',
+            'error'
+          );
+          scanCompleted = false;
+        }
+
+      } catch (error) {
+        scanCompleted = false;
+        showMessage('掃描處理失敗：' + error.message, 'error');
+      }
+    }
+
+    async function closeScanner() {
+      try {
+        if (scanner && scannerRunning) {
+          await scanner.stop();
+          scannerRunning = false;
+        }
+      } catch (error) {
+        // 關閉頁面時忽略相機停止錯誤
+      }
+
+      window.close();
+    }
+
+    window.addEventListener('beforeunload', function() {
+      if (scanner && scannerRunning) {
+        scanner.stop().catch(function() {});
+      }
+    });
+  </script>
+</body>
+</html>
