@@ -244,6 +244,27 @@ async function closeScanner() {
         scanner.stop().catch(function() {});
       }
     });
+
+// 接收原報到系統傳來的停止掃描指令
+window.addEventListener('message', async function(event) {
+  if (event.source !== window.parent) return;
+
+  if (!event.data || event.data.type !== 'IESC_STOP_SCAN') return;
+
+  try {
+    if (scanner && scannerRunning) {
+      await scanner.stop();
+      scannerRunning = false;
+    }
+  } catch(error) {
+    scannerRunning = false;
+  }
+
+  scanCompleted = false;
+  showMessage('相機已停止。', 'success');
+});
+
+    
   </script>
 </body>
 </html>
