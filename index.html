@@ -184,48 +184,80 @@
       }
     }
 
-    async function onScanSuccess(decodedText) {
-      if (scanCompleted) return;
 
-      scanCompleted = true;
+async function onScanSuccess(decodedText) {
+  if (scanCompleted) return;
 
-      try {
-        if (scanner && scannerRunning) {
-          await scanner.stop();
-          scannerRunning = false;
-        }
+  scanCompleted = true;
 
-        showMessage('QR Code 掃描成功，正在傳回報到系統……', 'success');
-
-
-if (window.parent && window.parent !== window) {
-  window.parent.postMessage(
-    {
-      type: 'IESC_QR_SCANNED',
-      qrContent: decodedText
-    },
-    '*'
-  );
-
-  showMessage(
-    '掃描成功！資料已傳送給原報到系統。\n請回到報到頁面確認報到結果。',
-    'success'
-  );
-} else {
-  showMessage(
-    '無法連結原報到系統，請重新整理頁面後再試。',
-    'error'
-  );
-  scanCompleted = false;
-}
-
-
-      } catch (error) {
-        scanCompleted = false;
-        showMessage('掃描處理失敗：' + error.message, 'error');
-      }
+  try {
+    // 停止相機
+    if (scanner && scannerRunning) {
+      await scanner.stop();
+      scannerRunning = false;
     }
 
+    showMessage('QR Code 掃描成功，正在傳回報到系統……', 'success');
+
+    // 取得原報到頁面建立的掃描識別碼
+    const scanId = new URLSearchParams(window.location.search)
+      .get('scanId');
+
+    if (!scanId) {
+      throw new Error('找不到掃描識別碼，請從報到系統重新開啟掃描器。');
+    }
+
+    // 建立隱藏 iframe，專門接收 POST 回應
+    let postFrame = document.getElementById('relayPostFrame');
+
+    if (!postFrame) {
+      postFrame = document.createElement('iframe');
+      postFrame.id = 'relayPostFrame';
+      postFrame.name = 'relayPostFrame';
+      postFrame.style.display = 'none';
+      document.body.appendChild(postFrame);
+    }
+
+    // 建立表單，將 QR Code 傳回 Apps Script
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action =
+      'https://script.google.com/macros/s/AKfycbw8ddLnVEjTsHSyjl4EMAFoxRkl5N0aEv6uJ2DTiknl9XvuzUEVANVmF3nv-cZSbnov/exec';
+    form.target = 'relayPostFrame';
+    form.style.display = 'none';
+
+    const scanIdInput = document.createElement('input');
+    scanIdInput.type = 'hidden';
+    scanIdInput.name = 'scanId';
+    scanIdInput.value = scanId;
+
+    const qrInput = document.createElement('input');
+    qrInput.type = 'hidden';
+    qrInput.name = 'qrContent';
+    qrInput.value = decodedText;
+
+    form.appendChild(scanIdInput);
+    form.appendChild(qrInput);
+    document.body.appendChild(form);
+
+    // 送出資料
+    form.submit();
+
+    showMessage(
+      '掃描成功！資料已送出，請返回原報到頁面確認報到結果。',
+      'success'
+    );
+
+    // 移除已送出的表單
+    setTimeout(function() {
+      form.remove();
+    }, 3000);
+
+  } catch (error) {
+    scanCompleted = false;
+    showMessage('掃描處理失敗：' + error.message, 'error');
+  }
+}
 
 async function closeScanner() {
   try {
@@ -244,26 +276,6 @@ async function closeScanner() {
         scanner.stop().catch(function() {});
       }
     });
-
-// 接收原報到系統傳來的停止掃描指令
-window.addEventListener('message', async function(event) {
-  if (event.source !== window.parent) return;
-
-  if (!event.data || event.data.type !== 'IESC_STOP_SCAN') return;
-
-  try {
-    if (scanner && scannerRunning) {
-      await scanner.stop();
-      scannerRunning = false;
-    }
-  } catch(error) {
-    scannerRunning = false;
-  }
-
-  scanCompleted = false;
-  showMessage('相機已停止。', 'success');
-});
-
     
   </script>
 </body>
