@@ -226,18 +226,18 @@ if (window.parent && window.parent !== window) {
       }
     }
 
-    async function closeScanner() {
-      try {
-        if (scanner && scannerRunning) {
-          await scanner.stop();
-          scannerRunning = false;
-        }
-      } catch (error) {
-        // 關閉頁面時忽略相機停止錯誤
-      }
 
-      window.close();
+async function closeScanner() {
+  try {
+    if (scanner && scannerRunning) {
+      await scanner.stop();
+      scannerRunning = false;
     }
+  } catch(error) {}
+
+  showMessage('掃描器已停止，可以返回報到系統。', 'success');
+}
+
 
     window.addEventListener('beforeunload', function() {
       if (scanner && scannerRunning) {
